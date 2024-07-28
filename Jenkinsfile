@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    tools{
+        maven 'Maven3'
+    }
+
     stages {
         stage('Build') {
             steps {
@@ -14,7 +18,7 @@ pipeline {
         }
         stage('Docker Build') {
             steps {
-                sh 'docker build -t task manager:latest .'
+                sh 'docker build -t taskmanager:latest .'
             }
         }
         stage('Deploy to Kubernetes') {
