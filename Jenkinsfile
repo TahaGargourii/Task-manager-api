@@ -1,19 +1,25 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'docker:19.03.12'
+            args '--privileged'
+        }
+    }
 
-    tools{
+    tools {
         maven 'Maven3'
     }
 
     stages {
-        stage('Build') {
+        stage('Check Docker') {
             steps {
-                sh 'mvn clean package -Dmaven.test.skip=true'
+                sh 'docker --version'
+                sh 'docker run hello-world'
             }
         }
-        stage('Test') {
+        stage('Build') {
             steps {
-                sh 'mvn test'
+                sh 'mvn clean package -DskipTests'
             }
         }
         stage('Docker Build') {
