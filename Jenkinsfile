@@ -1,39 +1,65 @@
 pipeline {
-    agent {
-        docker {
-            image 'docker:19.03.12'
-            args '--privileged'
-        }
-    }
+    agent any
 
-    tools {
-        maven 'Maven3'
+    environment {
+        DOCKER_IMAGE = 'task-manager-app'
+        DOCKER_TAG = 'latest'
     }
 
     stages {
-        stage('Check Docker') {
+        stage('Checkout') {
             steps {
-                sh 'docker --version'
-                sh 'docker run hello-world'
+                // Checkout the code from the Git repository
+                git url: 'https://github.com/TahaGargourii/Task-manager-api', branch: 'develop'
             }
         }
+
         stage('Build') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                script {
+                    // Build the Docker image
+                    sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                }
             }
         }
-        stage('Docker Build') {
+
+        stage('Test') {
             steps {
-                sh 'docker build -t taskmanager:latest .'
+                script {
+                    // Run tests inside the Docker container (if you have any test scripts)
+                    // This example assumes you have a script `run-tests.sh` for testing
+                    sh 'docker run --rm $DOCKER_IMAGE:$DOCKER_TAG ./run-tests.sh'
+                }
             }
         }
-        stage('Deploy to Kubernetes') {
+
+        stage('Deploy') {
             steps {
-                sh '''
-                kubectl apply -f k8s/deployment.yaml
-                kubectl apply -f k8s/service.yaml
-                '''
+                script {
+                    // Stop and remove any existing container
+                    sh 'docker rm -f task-manager || true'
+
+                    // Run the Docker container
+                    sh 'docker run -d --name task-manager -p 9088:9088 $DOCKER_IMAGE:$DOCKER_TAG'
+                }
             }
+        }
+    }
+
+    post {
+        always {
+            // Clean up Docker images
+            script {
+                sh 'docker rmi $DOCKER_IMAGE:$DOCKER_TAG || true'
+            }
+        }
+
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+
+        failure {
+            echo 'Pipeline failed.'
         }
     }
 }

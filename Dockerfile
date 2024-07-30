@@ -1,5 +1,5 @@
 # Use an official OpenJDK runtime as a parent image
-FROM openjdk:17-jdk-alpine
+FROM openjdk:17-jdk-slim
 
 # Set the working directory
 WORKDIR /app
@@ -8,7 +8,7 @@ WORKDIR /app
 COPY target/TaskManager-0.0.1-SNAPSHOT.jar app.jar
 
 # Expose the application port
-EXPOSE 9099
+EXPOSE 9088
 
 # Run the JAR file
 ENTRYPOINT ["java", "-jar", "app.jar"]
