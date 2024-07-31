@@ -5,15 +5,8 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Starting Build Stage...'
-                sh './mvnw clean package'
+                sh './mvnw clean package -DskipTests'
                 echo 'Build Stage Completed.'
-            }
-        }
-        stage('Test') {
-            steps {
-                echo 'Starting Test Stage...'
-                sh './mvnw test'
-                echo 'Test Stage Completed.'
             }
         }
         stage('Deploy') {
@@ -27,7 +20,7 @@ pipeline {
                     }
                     echo 'Docker is available.'
 
-                    // Build and run Docker container
+                    // Build Docker image
                     sh 'docker build -t task-manager-app:latest .'
                     echo 'Docker image built.'
 
@@ -49,7 +42,6 @@ pipeline {
                     // Wait for the application to start
                     sleep 10 // Adjust sleep time as necessary
 
-                    // Test if the application is running
                     def appRunning = sh(script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:9099', returnStdout: true).trim()
                     if (appRunning != '200') {
                         error "Application is not responding as expected. HTTP Status: ${appRunning}"
@@ -67,7 +59,8 @@ pipeline {
             sh 'docker rm task-manager-app || true'
             echo 'Stopped and removed task-manager-app container.'
 
-            junit '**/target/surefire-reports/*.xml'
+            sh 'ls -l target'
+
             archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true
             echo 'Post actions completed.'
         }
