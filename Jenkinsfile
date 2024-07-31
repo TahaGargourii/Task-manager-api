@@ -29,9 +29,9 @@ pipeline {
                     sh 'docker rm task-manager-app || true'
                     echo 'Stopped and removed any existing task-manager-app container.'
 
-                    // Run the new container
-                    sh 'docker run -d -p 9099:9099 --name task-manager-app task-manager-app:latest'
-                    echo 'Docker container started.'
+                    // Run the new container on a different port (e.g., 9100)
+                    sh 'docker run -d -p 9100:9099 --name task-manager-app task-manager-app:latest'
+                    echo 'Docker container started on port 9100.'
                 }
             }
         }
@@ -42,11 +42,12 @@ pipeline {
                     // Wait for the application to start
                     sleep 10 // Adjust sleep time as necessary
 
-                    def appRunning = sh(script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:9099', returnStdout: true).trim()
+                    // Test if the application is running on the new port
+                    def appRunning = sh(script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:9100', returnStdout: true).trim()
                     if (appRunning != '200') {
                         error "Application is not responding as expected. HTTP Status: ${appRunning}"
                     }
-                    echo 'Application is running and responding as expected.'
+                    echo 'Application is running and responding as expected on port 9100.'
                 }
             }
         }
@@ -59,8 +60,10 @@ pipeline {
             sh 'docker rm task-manager-app || true'
             echo 'Stopped and removed task-manager-app container.'
 
+            // List files in the target directory for debugging
             sh 'ls -l target'
 
+            // Archive artifacts without looking for test reports
             archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true
             echo 'Post actions completed.'
         }
