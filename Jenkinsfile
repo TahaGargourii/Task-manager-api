@@ -29,9 +29,9 @@ pipeline {
                     sh 'docker rm task-manager-app || true'
                     echo 'Stopped and removed any existing task-manager-app container.'
 
-                    // Run the new container on a different port (e.g., 9100)
-                    sh 'docker run -d -p 9100:9099 --name task-manager-app task-manager-app:latest'
-                    echo 'Docker container started on port 9100.'
+                    // Run the new container on the updated port
+                    sh 'docker run -d -p 9088:9088 --name task-manager-app task-manager-app:latest'
+                    echo 'Docker container started on port 9088.'
                 }
             }
         }
@@ -42,12 +42,12 @@ pipeline {
                     // Wait for the application to start
                     sleep 10 // Adjust sleep time as necessary
 
-                    // Test if the application is running on the new port
-                    def appRunning = sh(script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:9100', returnStdout: true).trim()
+                    // Test if the application is running on the correct endpoint
+                    def appRunning = sh(script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:9088/api/task/all', returnStdout: true).trim()
                     if (appRunning != '200') {
                         error "Application is not responding as expected. HTTP Status: ${appRunning}"
                     }
-                    echo 'Application is running and responding as expected on port 9100.'
+                    echo 'Application is running and responding as expected on port 9088.'
                 }
             }
         }
