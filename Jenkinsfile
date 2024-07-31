@@ -1,46 +1,60 @@
 pipeline {
     agent any
 
-    environment {
-        DOCKER_IMAGE = 'task-manager-app'
-        DOCKER_TAG = 'latest'
-    }
-
     stages {
-        stage('Checkout') {
-            steps {
-                // Checkout the code from the Git repository
-                git url: 'https://github.com/TahaGargourii/Task-manager-api', branch: 'develop'
-            }
-        }
-
         stage('Build') {
             steps {
-                script {
-                    // Build the Docker image
-                    sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
-                }
+                echo 'Starting Build Stage...'
+                sh './mvnw clean package'
+                echo 'Build Stage Completed.'
             }
         }
-
         stage('Test') {
             steps {
+                echo 'Starting Test Stage...'
+                sh './mvnw test'
+                echo 'Test Stage Completed.'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo 'Starting Deploy Stage...'
                 script {
-                    // Run tests inside the Docker container (if you have any test scripts)
-                    // This example assumes you have a script `run-tests.sh` for testing
-                    sh 'docker run --rm $DOCKER_IMAGE:$DOCKER_TAG ./run-tests.sh'
+                    // Check Docker version to ensure Docker is available
+                    def dockerVersion = sh(script: 'docker --version', returnStatus: true)
+                    if (dockerVersion != 0) {
+                        error "Docker is not installed or not available in the PATH."
+                    }
+                    echo 'Docker is available.'
+
+                    // Build and run Docker container
+                    sh 'docker build -t task-manager-app:latest .'
+                    echo 'Docker image built.'
+
+                    // Stop any running container with the same name
+                    sh 'docker stop task-manager-app || true'
+                    sh 'docker rm task-manager-app || true'
+                    echo 'Stopped and removed any existing task-manager-app container.'
+
+                    // Run the new container
+                    sh 'docker run -d -p 9099:9099 --name task-manager-app task-manager-app:latest'
+                    echo 'Docker container started.'
                 }
             }
         }
-
-        stage('Deploy') {
+        stage('Integration Test') {
             steps {
+                echo 'Starting Integration Test Stage...'
                 script {
-                    // Stop and remove any existing container
-                    sh 'docker rm -f task-manager || true'
+                    // Wait for the application to start
+                    sleep 10 // Adjust sleep time as necessary
 
-                    // Run the Docker container
-                    sh 'docker run -d --name task-manager -p 9088:9088 $DOCKER_IMAGE:$DOCKER_TAG'
+                    // Test if the application is running
+                    def appRunning = sh(script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:9099', returnStdout: true).trim()
+                    if (appRunning != '200') {
+                        error "Application is not responding as expected. HTTP Status: ${appRunning}"
+                    }
+                    echo 'Application is running and responding as expected.'
                 }
             }
         }
@@ -48,18 +62,20 @@ pipeline {
 
     post {
         always {
-            // Clean up Docker images
-            script {
-                sh 'docker rmi $DOCKER_IMAGE:$DOCKER_TAG || true'
-            }
-        }
+            echo 'Starting post actions...'
+            sh 'docker stop task-manager-app || true'
+            sh 'docker rm task-manager-app || true'
+            echo 'Stopped and removed task-manager-app container.'
 
+            junit '**/target/surefire-reports/*.xml'
+            archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true
+            echo 'Post actions completed.'
+        }
         success {
             echo 'Pipeline completed successfully!'
         }
-
         failure {
-            echo 'Pipeline failed.'
+            echo 'Pipeline failed!'
         }
     }
 }
